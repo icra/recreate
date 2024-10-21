@@ -123,9 +123,7 @@
     for(let place in p.places){
       for(let variable in p.places[place]){
         for(let serie in p.places[place][variable]){
-
           p.places[place][variable][serie] = Math.random() + 10;
-
           if(a<current_year){
             if(serie=="RCP26") p.places[place][variable][serie]=0;
             if(serie=="RCP45") p.places[place][variable][serie]=0;
@@ -136,7 +134,6 @@
             if(serie=="RCP45") p.places[place][variable][serie]-=2;
             if(serie=="RCP85") p.places[place][variable][serie]-=3;
           }
-
         }
       }
     }
@@ -190,10 +187,6 @@
       get_llocs(){     return Object.entries(this.llocs)    .filter(en=>en[1]).map(en=>en[0])},
       get_variables(){ return Object.entries(this.variables).filter(en=>en[1]).map(en=>en[0])},
       get_series(){    return Object.entries(this.series)   .filter(en=>en[1]).map(en=>en[0])},
-    },
-
-    mounted(){
-      //TODO
     },
   }).mount("#app");
 </script>
