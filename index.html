@@ -1,0 +1,192 @@
+<!doctype html><html><head>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <!--
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.2.0/dist/chart.umd.min.js"></script>
+  -->
+  <style>
+    label:hover{
+      background:gold;
+    }
+  </style>
+</head><body>
+
+<!--title-->
+<div>
+  <b>under development (October 2024)</b><hr>
+  <h1>
+    Project Recreate
+    <small>(dmercado, lbosch, nklamerth, lcorominas, wgernjak)</small>
+  </h1>
+  <p>
+    This is the scaffold for the data to be plotted (to be extracted from the NETCDF
+    files). Now there are random generated numbers.
+  </p>
+</div>
+
+<div id=app>
+  <!--checkboxes-->
+  <div>
+    <table border=1>
+      <tr>
+        <td>study cases</td>
+        <td>
+          <label v-for="_,lloc in llocs">
+            <input type="checkbox" v-model="llocs[lloc]"> {{lloc}}
+          </label>
+        </dd>
+      </tr>
+      <tr>
+        <td>variables</td>
+        <td>
+          <label v-for="_,v in variables">
+            <input type="checkbox" v-model="variables[v]"> {{v}}
+          </label>
+        </td>
+      </tr>
+      <tr>
+        <td>series</td>
+        <td>
+          <label v-for="_,s in series">
+            <input type="checkbox" v-model="series[s]"> {{s}}
+          </label>
+        </td>
+      </tr>
+    </table>
+  </div><hr>
+
+  <table border=1 style="font-size:x-small">
+    <thead>
+      <tr>
+        <th rowspan=3>date</th>
+        <th v-for="lloc in get_llocs" :colspan="get_variables.length * get_series.length">
+          {{lloc}}
+        </th>
+      </tr>
+
+      <tr>
+        <th v-for="i in get_llocs.length*get_variables.length" :colspan="get_series.length">
+          {{ get_variables[(i-1)%(get_variables.length)] }}
+        </th>
+      </tr>
+
+      <tr>
+        <th v-for="i in get_llocs.length*get_variables.length*get_series.length">
+          {{ get_series[(i-1)%(get_series.length)] }}
+        </th>
+      </tr>
+    </thead>
+
+    <tbody v-for="point in Points">
+      <tr v-for="row in [get_row(point)]">
+        <td>{{point.date}}</td>
+        <td v-for="n in row">
+          <div v-if="n">
+            {{n.toFixed(2)}}
+          </div>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<script>
+  class Point{
+    constructor(date){
+      this.date=date||"1850-01-01";
+      this.places={
+        denmark:{
+          temperature     : {historical:0, RCP26:0, RCP45:0, RCP85:0},
+          river_discharge : {historical:0, RCP26:0, RCP45:0, RCP85:0},
+        },
+        muga:{
+          temperature     : {historical:0, RCP26:0, RCP45:0, RCP85:0},
+          river_discharge : {historical:0, RCP26:0, RCP45:0, RCP85:0},
+        },
+        netherlands:{
+          temperature     : {historical:0, RCP26:0, RCP45:0, RCP85:0},
+          river_discharge : {historical:0, RCP26:0, RCP45:0, RCP85:0},
+        },
+        syros:{
+          temperature     : {historical:0, RCP26:0, RCP45:0, RCP85:0},
+          river_discharge : {historical:0, RCP26:0, RCP45:0, RCP85:0},
+        }
+      };
+    }
+  }
+
+  let Points=[];
+
+  let current_year = new Date().getFullYear();
+
+  for(let a=1850;a<=2100;a++){
+    let p = new Point(`${a}-01-01`);
+    for(let place in p.places){
+      for(let variable in p.places[place]){
+        for(let serie in p.places[place][variable]){
+          p.places[place][variable][serie] = Math.random() + 10;
+          if(a<current_year){
+            if(serie=="RCP26") p.places[place][variable][serie]=0;
+            if(serie=="RCP45") p.places[place][variable][serie]=0;
+            if(serie=="RCP85") p.places[place][variable][serie]=0;
+          }else{
+            if(serie=="historical") p.places[place][variable][serie]=0;
+            if(serie=="RCP26")      p.places[place][variable][serie]-=1;
+            if(serie=="RCP45")      p.places[place][variable][serie]-=2;
+            if(serie=="RCP85")      p.places[place][variable][serie]-=3;
+          }
+        }
+      }
+    }
+    Points.push(p);
+  }
+
+  let app=Vue.createApp({
+    data(){return{
+      Points,
+
+      //casos estudi
+      llocs:{
+        "denmark"     : true,
+        "muga"        : true,
+        "netherlands" : true,
+        "syros"       : true,
+      },
+
+      //cada cas d'estudi té aquestes variables
+      variables:{
+        "temperature"     : true,
+        "river_discharge" : true,
+      },
+
+      //cada variable té aquestes series
+      series:{
+        "historical" : true,
+        "RCP26"    : true,
+        "RCP45"    : true,
+        "RCP85"    : true,
+      },
+    }},
+
+    methods:{
+      get_row(point){
+        let row=[];
+        this.get_llocs.forEach(lloc=>{
+          this.get_variables.forEach(variable=>{
+            this.get_series.forEach(serie=>{
+              let n = point.places[lloc][variable][serie];
+              row.push(n);
+            });
+          });
+        });
+        return row;
+      },
+    },
+
+    computed:{
+      //get activated options
+      get_llocs(){     return Object.entries(this.llocs)    .filter(en=>en[1]).map(en=>en[0])},
+      get_variables(){ return Object.entries(this.variables).filter(en=>en[1]).map(en=>en[0])},
+      get_series(){    return Object.entries(this.series)   .filter(en=>en[1]).map(en=>en[0])},
+    },
+  }).mount("#app");
+</script>
