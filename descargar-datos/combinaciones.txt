@@ -1,6 +1,8 @@
 discharge:
-  https://cds.climate.copernicus.eu/datasets/sis-hydrology-variables-derived-projections?tab=download
   (TO DO)
+  https://cds.climate.copernicus.eu/datasets/sis-hydrology-variables-derived-projections?tab=download
+  https://esg-dn1.nsc.liu.se/esgf-idp/openid/daniel.mercado@ceab.csic.es
+  +@$T5v..Txx5ut@
 
 temperature (tas):
   * https://esg-dn1.nsc.liu.se/search/esgf-liu/
