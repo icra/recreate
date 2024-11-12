@@ -13,4 +13,6 @@ git push
 rsync -hPvr \
   --exclude ".git" \
   --exclude "deploy.sh" \
+  --exclude "*.sif" \
+  --exclude "*.nc" \
   . root@icra.loading.net:/var/www/vhosts/icradev.cat/recreate.icradev.cat
