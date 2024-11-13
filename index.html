@@ -1,8 +1,9 @@
 <!doctype html><html><head>
+  <meta charset=utf8>
+  <title>Projecte RECREATE</title>
   <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-  <!--
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.2.0/dist/chart.umd.min.js"></script>
-  -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.2.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.2.0/dist/chart.umd.min.js"></script>
   <style>
     label:hover{
       background:gold;
@@ -17,17 +18,18 @@
   <hr>
   <h1>
     Project Recreate
-    <small>(dmercado, lbosch, nklamerth, lcorominas, wgernjak)</small>
+    <small>(lbosch, dmercado, nklamerth, lcorominas, wgernjak)</small>
   </h1>
-  <p>
-    This is the scaffold for the data to be plotted (to be extracted from the NETCDF
-    files).
-  </p>
 </div>
 
 <div id=app>
   <!--checkboxes-->
-  <div>
+  <div
+    style="
+      display:flex;
+      align-items:center;
+    "
+  >
     <table border=1>
       <tr>
         <td>study cases</td>
@@ -54,7 +56,17 @@
         </td>
       </tr>
     </table>
-  </div><hr>
+    <button onclick="dibuixa()"
+      style="
+        margin-left:1em;
+        padding:0.618em 1.618em;
+      "
+    >redraw figure</button>
+  </div>
+
+  <div style="height:600px">
+    <canvas id=grafic>grafic aqui</canvas>
+  </div>
 
   <table border=1 style="font-size:x-small">
     <thead>
@@ -94,6 +106,7 @@
 </div>
 
 <script>
+  //estructura general de les dades
   class Point{
     constructor(date){
       this.date=date||"1850-01-01";
@@ -120,7 +133,7 @@
         }
       };
     }
-  }
+  };
 
   //ensembles: imported data
   let mrro_historical={
@@ -1862,23 +1875,25 @@
     },
   };
 
+  //array buit per guardar els objectes Point
   let Points=[];
 
-  let current_year = new Date().getFullYear();
+  //recorre mes a mes
+  const mesos=["01","02","03","04","05","06","07","08","09","10","11","12"];
 
-  for(let a=1970;a<=2100;a++){
-    ["01","02","03","04","05","06","07","08","09","10","11","12"].forEach(m=>{
-
-      let time = `${a}-${m}-01`;
+  //omple array Points
+  for(let aaaa=1970;aaaa<=2030;aaaa++){
+    mesos.forEach(mm=>{
+      let time = `${aaaa}-${mm}-01`;
       let p    = new Point(time);
 
+      //posa a lloc la variable "runoff" ("mrro")
       for(let place in p.places){
-        p.places[place].runoff.historical = mrro_historical[place][time] || 0;
+        p.places[place].runoff.historical = mrro_historical[place][time]||0;
       }
 
       Points.push(p);
     });
-
   }
 
   let app=Vue.createApp({
@@ -1888,9 +1903,9 @@
       //casos estudi
       llocs:{
         "denmark"     : true,
-        "muga"        : true,
-        "netherlands" : true,
-        "syros"       : true,
+        "muga"        : false,
+        "netherlands" : false,
+        "syros"       : false,
       },
 
       //cada cas d'estudi té aquestes variables
@@ -1900,19 +1915,20 @@
         "runoff"        : true,
       },
 
+      //cada variable té aquestes series
+      series:{
+        "historical" : true,
+        "RCP26"      : false,
+        "RCP45"      : false,
+        "RCP85"      : false,
+      },
+
       unitats:{
         "temperature"   : "ºC",
         "precipitation" : "?",
         "runoff"        : "mm/d",
       },
 
-      //cada variable té aquestes series
-      series:{
-        "historical" : true,
-        "RCP26"    : true,
-        "RCP45"    : true,
-        "RCP85"    : true,
-      },
     }},
 
     methods:{
@@ -1936,5 +1952,70 @@
       get_variables(){ return Object.entries(this.variables).filter(en=>en[1]).map(en=>en[0])},
       get_series(){    return Object.entries(this.series)   .filter(en=>en[1]).map(en=>en[0])},
     },
+
+    mounted(){
+      Vue.nextTick(function(){
+        dibuixa();
+      });
+    },
   }).mount("#app");
+
+  let chart_object = null;
+  function dibuixa(){
+    Chart.defaults.animation=false;
+    if(chart_object) chart_object.destroy();
+
+    let el = document.getElementById("grafic");
+
+    let datasets=[];
+
+    Object.entries(app.llocs).filter(e=>e[1]).map(e=>{
+      let lloc = e[0];
+      Object.entries(app.variables).filter(ee=>ee[1]).map(ee=>{
+        let variable = ee[0];
+        Object.entries(app.series).filter(eee=>eee[1]).map(eee=>{
+          let serie = eee[0];
+          let dataset = {
+            type:'line',
+            label:`${lloc}-${variable}-${serie}`,
+            data:Points.map(p=>p.places[lloc][variable][serie]),
+            borderWidth:0.5,
+          };
+          datasets.push(dataset);
+        });
+      });
+    });
+
+    chart_object = new Chart(el,{
+      type:'line',
+      data:{
+        labels:Points.map(p=>p.date),
+        datasets,
+      },
+      options:{
+        scales:{
+          y:{
+            beginAtZero:true,
+            title:{
+              display:false,
+              text:"títol gràfic",
+            },
+          },
+        },
+        plugins:{
+          title:{
+            display:false,
+            text:"title",
+            font:{
+              size:20,
+            },
+          },
+          legend:{
+            display:true,
+            position:"top",
+          },
+        },
+      },
+    });
+  }
 </script>
