@@ -77,6 +77,12 @@
         padding:0.618em 1.618em;
       "
     >redraw figure</button>
+    <button onclick="download_csv()"
+      style="
+        margin-left:1em;
+        padding:0.618em 1.618em;
+      "
+    >download.csv</button>
   </div>
 
   <div style="height:700px">
@@ -32813,8 +32819,8 @@
 
         let r_historic                           = csv_ensembles.runoff.historical[place][time]||0;
         p.places[place].runoff.historical        = r_historic;
-        p.places[place].runoff.RCP26             = csv_ensembles.runoff.RCP26     [place][time]||r_historic;
-        p.places[place].runoff.RCP85             = csv_ensembles.runoff.RCP85     [place][time]||r_historic;
+        p.places[place].runoff.RCP26             = csv_ensembles.runoff.RCP26[place][time]||r_historic;
+        p.places[place].runoff.RCP85             = csv_ensembles.runoff.RCP85[place][time]||r_historic;
 
         let t_historic                           = csv_ensembles.temperature.historical[place][time]||0;
         p.places[place].temperature.historical   = t_historic;
@@ -32979,5 +32985,38 @@
   }
   Array.prototype.ewma=function(lambda){
     return ewma(this,lambda);
+  }
+
+  //download csv
+  function download_csv(){
+    let csv_rows = [];
+
+
+    let first_row="time;";
+    app.get_llocs.forEach(lloc=>{
+      app.get_variables.forEach(variable=>{
+        app.get_series.forEach(serie=>{
+          first_row += `${lloc}-${variable}-${serie};`;
+        });
+      });
+    });
+    csv_rows.push(first_row);
+
+    Points.forEach(p=>{
+      let row = p.date+";"+app.get_row(p).join(";");
+      csv_rows.push(row);
+    });
+
+    let csv_string = csv_rows.join("\n");
+
+    let blob = new Blob([csv_string],{type:'text/plain'});
+    //generate <a> link and click it
+    let a      = document.createElement('a');
+    a.href     = URL.createObjectURL(blob);
+    a.target   = '_blank';
+    a.download = "download.csv";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   }
 </script>
