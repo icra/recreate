@@ -3,7 +3,6 @@
   <title>Projecte RECREATE</title>
   <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.2.0/dist/chart.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.2.0/dist/chart.umd.min.js"></script>
   <style>
     label:hover{
       background:gold;
@@ -53,6 +52,22 @@
           <label v-for="_,s in series">
             <input type="checkbox" v-model="series[s]"> {{s}}
           </label>
+        </td>
+      </tr>
+      <tr>
+        <td>ewma filter (λ)</td>
+        <td>
+          <span v-for="la in [.01,.02,.03,.04,.05,.06,.07,.08,.09,.1,.2,.3,.4,.5,.6,.7,.8,.9,1]">
+            <button @click="lambda=la;dibuixa()" :style="{background:la==lambda?'gold':''}">{{la}}</button>
+          </span>
+        </td>
+      </tr>
+      <tr>
+        <td>line width (px)</td>
+        <td>
+          <span v-for="bw in [0,0.1,0.5,1]">
+            <button @click="borderWidth=bw;dibuixa()" :style="{background:bw==borderWidth?'gold':''}">{{bw}}</button>
+          </span>
         </td>
       </tr>
     </table>
@@ -32787,32 +32802,43 @@
 
   //omple array Points
   for(let aaaa=1970;aaaa<=2100;aaaa++){
+    let media_anual = 0; //TODO
+
     mesos.forEach(mm=>{
       let time = `${aaaa}-${mm}-01`;
       let p    = new Point(time);
 
       //posa a lloc les variables des dels CSVs
       for(let place in p.places){
-        p.places[place].runoff.historical        = csv_ensembles.runoff.historical[place][time]||0;
-        p.places[place].runoff.RCP26             = csv_ensembles.runoff.RCP26     [place][time]||0;
-        p.places[place].runoff.RCP85             = csv_ensembles.runoff.RCP85     [place][time]||0;
 
-        p.places[place].temperature.historical   = csv_ensembles.temperature.historical[place][time]||0;
-        p.places[place].temperature.RCP26        = csv_ensembles.temperature.RCP26     [place][time]||0;
-        p.places[place].temperature.RCP85        = csv_ensembles.temperature.RCP85     [place][time]||0;
+        let r_historic                           = csv_ensembles.runoff.historical[place][time]||0;
+        p.places[place].runoff.historical        = r_historic;
+        p.places[place].runoff.RCP26             = csv_ensembles.runoff.RCP26     [place][time]||r_historic;
+        p.places[place].runoff.RCP85             = csv_ensembles.runoff.RCP85     [place][time]||r_historic;
 
-        p.places[place].precipitation.historical = csv_ensembles.precipitation.historical[place][time]||0;
-        p.places[place].precipitation.RCP26      = csv_ensembles.precipitation.RCP26     [place][time]||0;
-        p.places[place].precipitation.RCP85      = csv_ensembles.precipitation.RCP85     [place][time]||0;
+        let t_historic                           = csv_ensembles.temperature.historical[place][time]||0;
+        p.places[place].temperature.historical   = t_historic;
+        p.places[place].temperature.RCP26        = csv_ensembles.temperature.RCP26[place][time]||t_historic;
+        p.places[place].temperature.RCP85        = csv_ensembles.temperature.RCP85[place][time]||t_historic;
+
+        let p_historic                           = csv_ensembles.precipitation.historical[place][time]||0;
+        p.places[place].precipitation.historical = p_historic;
+        p.places[place].precipitation.RCP26      = csv_ensembles.precipitation.RCP26[place][time]||p_historic;
+        p.places[place].precipitation.RCP85      = csv_ensembles.precipitation.RCP85[place][time]||p_historic;
       }
 
       Points.push(p);
     });
+
+    //guardar media_anual TODO
   }
 
   let app=Vue.createApp({
     data(){return{
       Points,
+
+      lambda:0.04,
+      borderWidth:0,
 
       //casos estudi
       llocs:{
@@ -32838,7 +32864,7 @@
 
       unitats:{
         "temperature"   : "ºC",
-        "precipitation" : "?",
+        "precipitation" : "mm/d",
         "runoff"        : "mm/d",
       },
 
@@ -32857,6 +32883,8 @@
         });
         return row;
       },
+
+      dibuixa(){dibuixa()},
     },
 
     computed:{
@@ -32891,8 +32919,8 @@
           let dataset = {
             type:'line',
             label:`${lloc}-${variable}-${serie}`,
-            data:Points.map(p=>p.places[lloc][variable][serie]),
-            borderWidth:0.5,
+            data:Points.map(p=>p.places[lloc][variable][serie]).ewma(app.lambda),
+            borderWidth:app.borderWidth,
           };
           datasets.push(dataset);
         });
@@ -32930,5 +32958,26 @@
         },
       },
     });
+  }
+
+  //ewma
+  function ewma(arr,lambda){
+    lambda = lambda || 0.5;
+    if(lambda==1) return arr;
+
+    let z=[arr[0]];
+    let n = arr.length;
+    for(let i=1;i<n;i++){
+      if(arr[i]){
+        let zi = arr[i]*lambda + z[i-1]*(1-lambda);
+        z.push(zi);
+      }else{
+        z.push(0);
+      }
+    }
+    return z;
+  }
+  Array.prototype.ewma=function(lambda){
+    return ewma(this,lambda);
   }
 </script>
