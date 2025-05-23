@@ -1,0 +1,104 @@
+<!doctype html><html><head>
+  <meta charset=utf8>
+  <title>recreate data filter</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+</head><body>
+<h1>Recreate: filter for copernicus exports</h1>
+
+<div id=app>
+  <table border=1>
+    <tr v-for="fil in Object.keys(filter)">
+      <th>{{fil}}</th>
+      <td>
+        <span v-for="key in Object.keys(filter[fil])">
+          <label><input type=checkbox v-model="filter[fil][key]"> {{key}}</label>
+          <br>
+        </span>
+      </td>
+    </tr>
+  </table>
+
+  <code>
+    <b>
+      Filter result: {{filter_result.length}} combinations
+      <button>download TODO</button>
+    </b>
+    <div v-for="com in filter_result">
+      {{com}}
+    </div>
+  </code>
+</div>
+
+<script>
+  let filter={
+    "study cases":{
+      "syros":false,
+      "muga":false,
+      "mugacosta":false,
+      "denmark":false,
+      "netherlands":false,
+    },
+    variables:{
+      "discharge":false,
+      "evaporation":false,
+      "precipitation":false,
+      "temperature":false,
+    },
+    series:{
+      "historical":false,
+      "rcp26":false,
+      "rcp45":false,
+      "rcp85":false,
+    },
+    model_clima:{
+      "EC-EARTH_CCLM4-8-17":false,
+      "EC-EARTH_RACMO22E":false,
+      "EC-EARTH_RC4":false,
+      "EC-EARTH_RCA4":false,
+      "HadGEM2-ES_RACMO22E":false,
+      "HadGEM2-ES_RC4":false,
+      "HadGEM2-ES_RCA4":false,
+      "MPI-ESM-LR_CSC-REMO2009":false,
+      "MPI-ESM-LR_RC4":false,
+      "MPI-ESM-LR_RCA4":false,
+    },
+    model_hydro:{
+      "e-hype":false,
+      "vic-wur":false,
+    },
+  };
+</script>
+
+<script>
+  let app = Vue.createApp({
+    data(){return{
+      filter,
+    }},
+
+    computed:{
+      filter_result(){
+        let study_cases = Object.entries(this.filter["study cases"]).filter(en=>en[1]).map(en=>en[0]);
+        let variables   = Object.entries(this.filter.variables)     .filter(en=>en[1]).map(en=>en[0]);
+        let series      = Object.entries(this.filter.series)        .filter(en=>en[1]).map(en=>en[0]);
+        let model_clima = Object.entries(this.filter.model_clima)   .filter(en=>en[1]).map(en=>en[0]);
+        let model_hydro = Object.entries(this.filter.model_hydro)   .filter(en=>en[1]).map(en=>en[0]);
+
+        let combinations=[];
+        study_cases.forEach(sc=>{
+          variables.forEach(va=>{
+            series.forEach(se=>{
+              model_clima.forEach(mc=>{
+                model_hydro.forEach(mh=>{
+                  let item = `0-${sc}-${va}-${se}-${mc}_*_${mh}_*.csv`;
+                  combinations.push(item);
+                });
+              });
+            });
+          });
+        });
+
+        return combinations;
+      },
+    },
+  }).mount("#app");
+</script>
