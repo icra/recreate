@@ -19,15 +19,19 @@
     }
   </style>
 </head><body>
-
-<h1>Recreate: filter for copernicus exports</h1>
+<h1>Recreate: filter for copernicus exported data (phase 2)</h1>
 
 <div id=app>
   <div style="display:flex">
     <div>
       <table border=1>
         <tr v-for="fil in Object.keys(filter)">
-          <th>{{fil}}</th>
+          <th>
+            {{fil}}
+            <div v-if="fil=='model_hydro'" smaller style="font-weight:normal">
+              (discharge only)
+            </div>
+          </th>
           <td>
             <span v-for="key in Object.keys(filter[fil])">
               <label>
@@ -79,7 +83,8 @@
     </div>
   </div><hr>
 
-  <button v-if="!show_final_table" @click="show_final_table=true">show combined table</button>
+  <button @click="download_csv_final_table()">download combined table as CSV</button>
+  <button v-if="!show_final_table" @click="show_final_table=true">show combined table (slow to render)</button>
   <div v-if="show_final_table">
     <b>Combined table (final result) <button @click="show_final_table=false">hide table (improves speed)</button></b>
     <table border=1 xsmall
@@ -122,6 +127,7 @@
         </tr>
       </thead>
 
+      <!--
       <tbody>
         <tr v-for="[date,point] in final_table">
           <td>{{date}}</td>
@@ -130,6 +136,12 @@
           </td>
         </tr>
       </tbody>
+      -->
+      <tr>
+        <td>
+          Data not shown (for web performance). Download the CSV to see the final table
+        </td>
+      </tr>
     </table>
   </div>
 </div>
@@ -175,6 +187,50 @@
 </script>
 
 <script>
+  //download csv resulting final table
+  function download_csv_final_table(){
+    let csv_rows = [];
+
+    let first_row="date;";
+    app.get_ll.forEach(lloc=>{
+      app.get_vv.forEach(variable=>{
+        app.get_ss.forEach(serie=>{
+          app.get_mc.forEach(mc=>{
+            app.get_mh.forEach((mh,i)=>{
+              if(variable=="discharge"){
+                first_row += `${lloc}-${variable}-${serie}-${mc}-${mh};`;
+              }else{
+                if(i==0){
+                  first_row += `${lloc}-${variable}-${serie}-${mc};`;
+                }else{
+                  first_row += `;`;
+                }
+              }
+            });
+          });
+        });
+      });
+    });
+    csv_rows.push(first_row);
+
+    app.final_table.forEach(([date,point])=>{
+      let row = date+";"+app.get_row(point).join(";");
+      csv_rows.push(row);
+    });
+
+    let csv_string = csv_rows.join("\n");
+
+    let blob = new Blob([csv_string],{type:'text/plain'});
+    //generate <a> link and click it
+    let a      = document.createElement('a');
+    a.href     = URL.createObjectURL(blob);
+    a.target   = '_blank';
+    a.download = "download.csv";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+
   let app = Vue.createApp({
     data(){return{
       filter,
@@ -193,6 +249,8 @@
     }},
 
     methods:{
+      download_csv_final_table,
+
       async get_filenames(){
         let globs = this.filter_result;
         let body = new FormData();
@@ -214,8 +272,7 @@
           index = index || 0;
           let fn = filenames[index];
           if(!fn){
-            alert("Download complete. Now wait for the combined table to be rendered");
-            _this.show_final_table=true;
+            alert("Download complete");
             return;
           }
           await _this.download_a_csv(fn);
@@ -325,7 +382,6 @@
         });
         return row;
       },
-
     },
 
     computed:{
