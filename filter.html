@@ -1,57 +1,162 @@
 <!doctype html><html><head>
   <meta charset=utf8>
-  <title>recreate data filter</title>
-  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <title>filter for csv exports</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <style>
+    [xsmall]{
+      font-size:x-small;
+    }
+    [smaller]{
+      font-size:smaller;
+    }
+    [green=true]{
+      color:green;
+    }
+    [sticky]{
+      position:sticky;
+      top:0;
+      background:#eee;
+    }
+  </style>
 </head><body>
+
 <h1>Recreate: filter for copernicus exports</h1>
 
 <div id=app>
-  <table border=1>
-    <tr v-for="fil in Object.keys(filter)">
-      <th>{{fil}}</th>
-      <td>
-        <span v-for="key in Object.keys(filter[fil])">
-          <label><input type=checkbox v-model="filter[fil][key]"> {{key}}</label>
-          <br>
-        </span>
-      </td>
-    </tr>
-  </table>
-
-  <code>
-    <b>
-      Filter result: {{filter_result.length}} combinations
-      <button>download TODO</button>
-    </b>
-    <div v-for="com in filter_result">
-      {{com}}
+  <div style="display:flex">
+    <div>
+      <table border=1>
+        <tr v-for="fil in Object.keys(filter)">
+          <th>{{fil}}</th>
+          <td>
+            <span v-for="key in Object.keys(filter[fil])">
+              <label>
+                <input type=checkbox v-model="filter[fil][key]">{{key}}
+                <span v-if="fil=='variables'" xsmall>
+                  (<span v-html="units[key]"></span>)
+                </span>
+              </label>
+              <br>
+            </span>
+          </td>
+        </tr>
+      </table>
     </div>
-  </code>
+    <div v-if="filter_result.length==0">
+      ~select at least one option of each parameter
+    </div>
+
+    <div v-if="filter_result.length" style="padding-left:8px">
+      <b>
+        Filter result: {{filter_result.length}} combinations
+        <button @click="get_filenames()">get filenames</button>
+      </b>
+      <details open>
+        <div v-for="com in filter_result">
+          <code>{{com}}</code>
+        </div>
+      </details>
+
+      <div v-if="filenames.size">
+        <hr>
+        <b>Filenames that match the parameters selected: ({{filenames.size}})</b>
+        <button @click="download_all()">download_all</button>
+        <small v-if="Object.keys(csv).length">(green="already downloaded")</small>
+        <details open>
+          <div xsmall>
+            <div v-for="fn in filenames">
+              <div @click="download_a_csv(fn)">
+                <div v-for="basename in [fn.split('/')[2]]">
+                  <span :green="csv[basename]!=undefined">
+                    {{basename}}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </details>
+      </div>
+    </div>
+  </div><hr>
+
+  <button v-if="!show_final_table" @click="show_final_table=true">show combined table</button>
+  <div v-if="show_final_table">
+    <b>Combined table (final result) <button @click="show_final_table=false">hide table (improves speed)</button></b>
+    <table border=1 xsmall
+      v-if="filter_result.length"
+      v-for="[ll,vv,ss,mc,mh] in [[get_ll.length, get_vv.length, get_ss.length, get_mc.length, get_mh.length]]"
+    >
+      <thead sticky>
+        <tr><!--data i llocs-->
+          <th rowspan=5>date</th>
+          <th v-for="lloc in get_ll" :colspan="vv*ss*mc*mh">
+            {{lloc}}
+          </th>
+        </tr>
+        <tr><!--vars-->
+          <th v-for="i in ll*vv" :colspan="ss*mc*mh">
+            <span v-for="variable in [get_vv[(i-1)%(vv)]]">
+              {{variable}}
+              <span xsmall>
+                (<span v-html="units[variable]"></span>)
+              </span>
+            </span>
+          </th>
+        </tr>
+        <tr><!--series-->
+          <th v-for="i in ll*vv*ss" :colspan="mc*mh">
+            {{ get_ss[(i-1)%(ss)] }}
+          </th>
+        </tr>
+        <tr><!--models c-->
+          <th v-for="i in ll*vv*ss*mc" :colspan="mh">
+            {{ get_mc[(i-1)%(mc)] }}
+          </th>
+        </tr>
+        <tr><!--models h-->
+          <th v-for="i in ll*vv*ss*mc*mh">
+            <div v-if="column_is_discharge[i-1]">
+              {{ get_mh[(i-1)%(mh)] }}
+            </div>
+          </th>
+        </tr>
+      </thead>
+
+      <tbody>
+        <tr v-for="[date,point] in final_table">
+          <td>{{date}}</td>
+          <td v-for="n in get_row(point)">
+            {{n}}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
 </div>
 
 <script>
   let filter={
     "study cases":{
-      "syros":false,
+      "syros":true,
       "muga":false,
       "mugacosta":false,
       "denmark":false,
       "netherlands":false,
     },
     variables:{
-      "discharge":false,
+      "discharge":true,
       "evaporation":false,
       "precipitation":false,
       "temperature":false,
     },
     series:{
-      "historical":false,
+      "historical":true,
       "rcp26":false,
       "rcp45":false,
       "rcp85":false,
     },
     model_clima:{
-      "EC-EARTH_CCLM4-8-17":false,
+      "EC-EARTH_CCLM4-8-17":true,
       "EC-EARTH_RACMO22E":false,
       "EC-EARTH_RC4":false,
       "EC-EARTH_RCA4":false,
@@ -63,7 +168,7 @@
       "MPI-ESM-LR_RCA4":false,
     },
     model_hydro:{
-      "e-hype":false,
+      "e-hype":true,
       "vic-wur":false,
     },
   };
@@ -73,7 +178,155 @@
   let app = Vue.createApp({
     data(){return{
       filter,
+      filenames:new Set(),
+      csv:{},
+
+      units:{
+        "discharge":    "m<sup>3</sup>·s<sup>-1</sup>",
+        "evaporation":  "kg·m<sup>-2</sup>·s<sup>-1</sup>",
+        "precipitation":"kg·m<sup>-2</sup>·s<sup>-1</sup>",
+        "temperature":  "K",
+      },
+
+      points:{}, //taula final a descarregar
+      show_final_table:true,
     }},
+
+    methods:{
+      async get_filenames(){
+        let globs = this.filter_result;
+        let body = new FormData();
+        body.append("globs",JSON.stringify(globs));
+        let res = await fetch('get_filenames.php',{method:'POST',body});
+        let arr = await res.json();
+        //console.log(arr);//debug
+        this.filenames.clear();
+        arr.forEach(fn=>{
+          this.filenames.add(fn);
+        });
+      },
+
+      async download_all(){
+        this.show_final_table=false;
+        let filenames = Array.from(this.filenames);
+        let _this = this;
+        async function download_ith(index){
+          index = index || 0;
+          let fn = filenames[index];
+          if(!fn){
+            alert("Download complete. Now wait for the combined table to be rendered");
+            _this.show_final_table=true;
+            return;
+          }
+          await _this.download_a_csv(fn);
+          await download_ith(index+1);
+        }
+        download_ith(0);
+      },
+
+      async download_a_csv(url){
+        let basename = url.split("/")[2];
+
+        //check already downloaded
+        if(this.csv[basename]) return;
+
+        let res = await fetch(url);
+        let txt = await res.text();
+        let table=[];
+        txt.split("\n").filter(e=>e).forEach((row,i)=>{
+          if(i==0) return;
+          let splits = row.split(",");
+          let date  = splits[0];
+          let value = splits[1];
+          table.push({date,value});
+        });
+        //console.log(table);
+
+        //classifica la taula
+        let splits   = basename.split("-");
+        let lloc     = splits[1];
+        let variable = splits[2];
+        let serie    = splits[3];
+
+        let mc = null; //model clima
+        let models_c = Object.keys(filter.model_clima);
+        for(let i=0;i<models_c.length;i++){
+          let model = models_c[i];
+          let found = basename.includes(model);
+          if(found){
+            mc = model;
+            break;
+          }
+        }
+        let mh = null; //model hydro
+        if(variable=="discharge"){
+          let models_h = Object.keys(filter.model_hydro);
+          for(let i=0;i<models_h.length;i++){
+            let model = models_h[i];
+            let found = basename.includes(model);
+            if(found){
+              mh = model;
+              break;
+            }
+          }
+        }
+
+        console.log("ok",lloc,variable,serie,mc,mh);
+
+        this.csv[basename] = table;
+
+        table.forEach(row=>{
+          let date  = row.date;
+          let value = row.value;
+          this.classifica(date,lloc,variable,serie,mc,mh,value);
+        });
+      },
+
+      //classifica un point
+      classifica(date,lloc,variable,serie,mc,mh,value){
+        let points = this.points;
+        date = date.substring(0,10);
+        if(!points[date])                            points[date]={};
+        if(!points[date][lloc])                      points[date][lloc]={};
+        if(!points[date][lloc][variable])            points[date][lloc][variable]={};
+        if(!points[date][lloc][variable][serie])     points[date][lloc][variable][serie]={};
+        if(!points[date][lloc][variable][serie][mc]) points[date][lloc][variable][serie][mc]={};
+
+        if(mh){
+          points[date][lloc][variable][serie][mc][mh]=value;
+        }else{
+          points[date][lloc][variable][serie][mc]=value;
+        }
+      },
+
+      //transforma un point amb un array 1d
+      get_row(point){
+        let row=[];
+        this.get_ll.forEach(lloc=>{
+          this.get_vv.forEach(variable=>{
+            this.get_ss.forEach(serie=>{
+              this.get_mc.forEach(mc=>{
+                this.get_mh.forEach((mh,i)=>{
+                  if(variable=="discharge"){
+                    let n = point?.[lloc]?.[variable]?.[serie]?.[mc]?.[mh];
+                    row.push(n);
+                  }else{
+                    if(i==0){
+                      let n = point?.[lloc]?.[variable]?.[serie]?.[mc];
+                      row.push(n);
+                    }else{
+                      row.push(undefined);
+                    }
+                  }
+                });
+              });
+            });
+          });
+        });
+        return row;
+      },
+
+    },
 
     computed:{
       filter_result(){
@@ -88,16 +341,61 @@
           variables.forEach(va=>{
             series.forEach(se=>{
               model_clima.forEach(mc=>{
-                model_hydro.forEach(mh=>{
-                  let item = `0-${sc}-${va}-${se}-${mc}_*_${mh}_*.csv`;
+
+                if(va=="discharge"){
+                  model_hydro.forEach(mh=>{
+                    let item = `0-${sc}-${va}-${se}-${mc}_*_${mh}_*.csv`;
+                    combinations.push(item);
+                  });
+                }else{
+                  let item = `0-${sc}-${va}-${se}-${mc}_*.csv`;
                   combinations.push(item);
-                });
+                }
               });
             });
           });
         });
 
         return combinations;
+      },
+
+      final_table(){
+        let entries = Object.entries(this.points);
+        entries.sort((a,b)=>{
+          let aa = a[0];
+          let bb = b[0];
+          return aa<bb?-1:1;
+        });
+        return entries;
+      },
+
+      //helper functions per calcular column colspans
+      get_ll(){return Object.entries(this.filter["study cases"]).filter(en=>en[1]).map(en=>en[0])},
+      get_vv(){return Object.entries(this.filter["variables"]  ).filter(en=>en[1]).map(en=>en[0])},
+      get_ss(){return Object.entries(this.filter["series"]     ).filter(en=>en[1]).map(en=>en[0])},
+      get_mc(){return Object.entries(this.filter["model_clima"]).filter(en=>en[1]).map(en=>en[0])},
+      get_mh(){
+        let entries = Object.entries(this.filter["model_hydro"]).filter(en=>en[1]).map(en=>en[0])
+        if(entries.length==0) return [""];
+        return entries;
+      },
+
+      //generate array of zeros and ones to see if a column is from variable "discharge"
+      column_is_discharge(){
+        let row=[];
+        this.get_ll.forEach(lloc=>{
+          this.get_vv.forEach(variable=>{
+            this.get_ss.forEach(serie=>{
+              this.get_mc.forEach(mc=>{
+                this.get_mh.forEach(mh=>{
+                  let n = variable=="discharge";
+                  row.push(n);
+                });
+              });
+            });
+          });
+        });
+        return row;
       },
     },
   }).mount("#app");
